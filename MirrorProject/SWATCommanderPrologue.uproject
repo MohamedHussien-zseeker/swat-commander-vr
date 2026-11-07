@@ -1,0 +1,14 @@
+{
+    "FileVersion": 3,
+    "EngineAssociation": "4.27",
+    "Category": "",
+    "Description": "Generated mirror project from UEVR-MCP uevr_dump_ue_project.",
+    "Modules": [
+        {
+            "Name": "SWATCommander",
+            "Type": "Runtime",
+            "LoadingPhase": "Default",
+            "AdditionalDependencies": [ "Engine", "CoreUObject" ]
+        }
+    ]
+}

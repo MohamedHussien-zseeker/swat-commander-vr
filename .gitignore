@@ -1,0 +1,22 @@
+# Runtime / generated artifacts from the live UEVR profile
+log.txt
+imgui.ini
+uevr_mcp_last_breadcrumb.json
+cache/
+plugins/
+uobjecthook/
+shader_overrides/
+dumper_mode
+
+# Large binary reverse-engineering project files we keep out (keep .hpp/.py)
+# (jmap is intentionally tracked; remove this line's comment if you want it ignored)
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+
+# Python
+__pycache__/
+*.pyc

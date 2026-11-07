@@ -1,0 +1,56 @@
+// Auto-generated UHT enum. Source: Enum PrimaryWeaponEnum
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "EPrimaryWeaponEnum.generated.h"
+
+UENUM(BlueprintType)
+enum class EPrimaryWeaponEnum : uint8 {
+    AC40 = 0 UMETA(DisplayName="AC40"),
+    AC40M = 1 UMETA(DisplayName="AC40M"),
+    AC60 = 2 UMETA(DisplayName="AC60"),
+    Shotgun = 3 UMETA(DisplayName="Shotgun"),
+    SMG = 4 UMETA(DisplayName="SMG"),
+    SKSMG = 5 UMETA(DisplayName="SKSMG"),
+    NLShotgun = 6 UMETA(DisplayName="NLShotgun"),
+    SuspSMG = 7 UMETA(DisplayName="SuspSMG"),
+    SuspSG = 8 UMETA(DisplayName="SuspSG"),
+    SuspAR = 9 UMETA(DisplayName="SuspAR"),
+    GAR = 10 UMETA(DisplayName="GAR"),
+    FAR = 11 UMETA(DisplayName="FAR"),
+    SuspDBSG = 12 UMETA(DisplayName="SuspDBSG"),
+    SuspPASG = 13 UMETA(DisplayName="SuspPASG"),
+    SuspAK = 14 UMETA(DisplayName="SuspAK"),
+    SuspAKG = 15 UMETA(DisplayName="SuspAKG"),
+    SuspAKS = 16 UMETA(DisplayName="SuspAKS"),
+    SuspUZI = 17 UMETA(DisplayName="SuspUZI"),
+    SuspSMGL = 18 UMETA(DisplayName="SuspSMGL"),
+    SuspPASGR = 19 UMETA(DisplayName="SuspPASGR"),
+    SuspSMGT = 20 UMETA(DisplayName="SuspSMGT"),
+    PAShotgun = 21 UMETA(DisplayName="PAShotgun"),
+    MeleeChainsaw = 22 UMETA(DisplayName="MeleeChainsaw"),
+    SuspTACSMG = 23 UMETA(DisplayName="SuspTACSMG"),
+    SuspIPASG = 24 UMETA(DisplayName="SuspIPASG"),
+    SuspARL = 25 UMETA(DisplayName="SuspARL"),
+    SuspSGLM = 26 UMETA(DisplayName="SuspSGLM"),
+    MPSMG = 27 UMETA(DisplayName="MPSMG"),
+    MPSMSMG = 28 UMETA(DisplayName="MPSMSMG"),
+    MPCSMG = 29 UMETA(DisplayName="MPCSMG"),
+    SuspMPSSMG = 30 UMETA(DisplayName="SuspMPSSMG"),
+    SuspMPSMG = 31 UMETA(DisplayName="SuspMPSMG"),
+    SuspMPMINI = 32 UMETA(DisplayName="SuspMPMINI"),
+    SuspMP40 = 33 UMETA(DisplayName="SuspMP40"),
+    SuspMPM3 = 34 UMETA(DisplayName="SuspMPM3"),
+    SuspLuiceMG = 35 UMETA(DisplayName="SuspLuiceMG"),
+    SuspBizon = 36 UMETA(DisplayName="SuspBizon"),
+    SuspFelonyDE50Pistol = 37 UMETA(DisplayName="SuspFelonyDE50Pistol"),
+    MPU = 38 UMETA(DisplayName="MPU"),
+    SuspSGFire = 39 UMETA(DisplayName="SuspSGFire"),
+    FNAR = 40 UMETA(DisplayName="FNAR"),
+    PBGRifle160 = 41 UMETA(DisplayName="PBGRifle160"),
+    PBGRifle = 42 UMETA(DisplayName="PBGRifle"),
+    SMG60 = 43 UMETA(DisplayName="SMG60"),
+    NLSAShotgun = 44 UMETA(DisplayName="NLSAShotgun"),
+    PrimaryWeaponEnum_MAX = 45 UMETA(DisplayName="PrimaryWeaponEnum_MAX"),
+};

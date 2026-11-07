@@ -1,0 +1,577 @@
+=====================================================================
+ SWAT COMMANDER: PROLOGUE  --  VR / UEVR-MCP  HANDOFF
+ Date: 2026-11-05
+ Session: OpenCode + UEVR-MCP (MCP server name: "uevr")
+ Current milestone: two-handed weapon grip driven by the LEFT controller
+=====================================================================
+
+1. GOAL
+---------------------------------------------------------------------
+Build a 6DOF VR profile for SWAT Commander: Prologue using UEVR +
+UEVR-MCP, so the AI agent can inspect the running Unreal game and drive
+motion-controller weapon handling.
+
+DONE: head tracking + right-controller weapon aim.
+DONE: two-handed left-hand grip driven by the left controller.
+      The left arm's TwoBoneIK target now follows the left controller.
+      Implementation: <profile>\scripts\autorun\twohand_grip.lua
+      Details: section 9 (mechanism) and section 13 (script/offsets).
+
+
+2. ENVIRONMENT
+---------------------------------------------------------------------
+Game install : C:\Program Files (x86)\Steam\steamapps\common\SWAT Commander - Prologue
+Game exe     : ...\SWATCommander\Binaries\Win64\SWATCommanderPrologue-Win64-Shipping.exe
+Engine       : Unreal Engine 4.27
+               (UEVR log: "Found version 4.27 from executable";
+                WindowsNoEditor paks; PhysX3)
+
+UEVR profile : C:\Users\Ghost\AppData\Roaming\UnrealVRMod\SWATCommanderPrologue-Win64-Shipping
+UEVR-MCP     : C:\Tools\UevrMcp-v1.0.0   (release v1.0.0)
+  installer that actually runs : install.run.ps1  (UTF-8 BOM copy)
+  backend DLL                  : C:\Users\Ghost\Downloads\uevr58-test\UEVRBackend.dll
+  plugin DLL                   : <profile>\plugins\uevr_mcp.dll
+  MCP HTTP port                : 8899
+
+OpenCode MCP registration:
+  C:\Users\Ghost\.config\opencode\opencode.json  -> mcp.servers.uevr
+  (type local, cwd C:\Tools\UevrMcp-v1.0.0\bin,
+   env UEVR_BACKEND_DLL=C:\Users\Ghost\Downloads\uevr58-test\UEVRBackend.dll)
+
+Research / dumps:
+  C:\SWAT-VR-Research\README.md
+  C:\SWAT-VR-Research\MirrorProject\Source\SWATCommander\Public\WeaponBase.h
+  C:\SWAT-VR-Research\MirrorProject\Source\SWATCommander\Public\EquipmentBase.h
+  C:\SWAT-VR-Research\MirrorProject\Source\SWATCommander\Public\TSCharacterBase.h
+
+NOTE: the CLI `attach` verb fails with System.ArgumentNullException
+(RepoRoot) because the release ZIP has no repo layout. Use the MCP tool
+uevr_setup_game with explicit backendDll/pluginDll/skipPluginInstall.
+
+
+3. LIVE SESSION AT HANDOFF TIME
+---------------------------------------------------------------------
+Process : SWATCommanderPrologue-Win64-Shipping.exe  (PID 8212)
+Runtime : OpenXR, HMD active, 2064 x 2208
+Modules : UEVRPluginNullifier.dll, UEVRBackend.dll, uevr_mcp.dll
+Map     : /Game/Maps/Autocenter/Autocenter
+Pawn    : CH_Operator_C        @ 0x1FCA838C020   (volatile)
+PC      : BP_SPMainPlayerController_C @ 0x1FC97DFB380 (volatile)
+Camera  : CameraComponent      @ 0x1FF1CF7F020
+          AttachParent = SpringArmComponent @ 0x1FEFC40F380
+          bUsePawnControlRotation = true, FieldOfView = 90
+
+IMPORTANT: `dumper_mode` sentinel still exists in the profile folder,
+but the current launch path ignores it (VR is active). Do not assume
+dumper mode from the sentinel alone.
+
+
+4. WHAT ALREADY WORKS
+---------------------------------------------------------------------
+Head tracking : yes (VR_DecoupledPitch=true, decoupled pitch/roll)
+Right hand    : UEVR built-in motion-controller aim
+                VR_AimMethod = 2 (Motion Controllers)
+                VR_AimSpeed  = 15
+                VR_AimInterp = true
+                VR_AimUsePawnControlRotation = false
+                VR_AimModifyPlayerControlRotation = false
+Left hand     : DONE -- the left arm IK target follows the left controller
+                via scripts\autorun\twohand_grip.lua (see section 9).
+
+Roomscale     : VR_RoomscaleMovement=false (stick locomotion)
+World scale   : VR_WorldScale = 1.0
+Controller offsets: all zero (VR_Left/RightController*Offset* = 0)
+
+There is NO saved UObjectHook attachment: <profile>\uobjecthook\ is empty
+and <profile>\scripts\ is empty. Right-controller aim is UEVR's built-in
+feature, not a profile attachment.
+
+
+5. MOTION CONTROLLER POSES -- WORKS (after waking controllers)
+---------------------------------------------------------------------
+Lua:
+  uevr.vr.get_pose(index)  -> table {1..7}
+     [1],[2],[3] = position x,y,z
+     [4],[5],[6],[7] = quaternion x,y,z,w
+  uevr.vr.get_hmd_index()             = 0
+  uevr.vr.get_left_controller_index() = 1
+  uevr.vr.get_right_controller_index()= 2
+  uevr.vr.get_standing_origin()       -> {1,2,3}
+
+Live sample (meters):
+  HMD   pos=( 0.1228, -0.0436, -0.1643)
+        quat=(-0.0895, -0.1024, -0.1396, 0.9808)
+  LEFT  pos=( 0.0105, -0.3118, -0.2478)
+        quat=( 0.5199,  0.0196,  0.2354, 0.8209)
+  RIGHT pos=( 0.1594, -0.2300, -0.1611)
+        quat=( 0.4738, -0.0838, -0.0224, 0.8763)
+  standing origin = (0.0148, -0.0020, 0.0015)
+
+!!! GOTCHA !!!
+  When the controllers are idle/asleep, get_pose(1) and get_pose(2)
+  return identity (0,0,0, 0,0,0,1) and uevr_vr_status reports
+  usingControllers=false. This is NOT a broken binding -- the OpenXR
+  actions ARE bound (UEVR log: "Left Hand: 1", "Right Hand: 2").
+  Wake/pick up the controllers, then poses appear.
+
+  Coordinate frame is believed to be OpenXR local space:
+     +X right, +Y up, -Z forward
+  This has NOT been confirmed empirically yet. Confirm by moving the
+  left controller along exactly one axis and re-reading get_pose(1).
+
+
+6. PROPERTY READ / WRITE API (Lua `mcp.*`)
+---------------------------------------------------------------------
+  mcp.read_property(addr, "Field")          -> value
+      addr must be a NUMBER (obj:get_address()), not a UObject.
+      ObjectProperty returns a raw numeric address (not a UObject).
+      Works: float/int/bool/name/string/object.
+      RETURNS nil FOR StructProperty.  <-- key limitation
+
+  mcp.write_property(addr, "Field", value)  -> bool
+      Works for scalars (tested: ADSAlpha float -> true).
+      RETURNS false FOR StructProperty in EVERY format tried:
+        - {Rotation={X,Y,Z,W}, Translation={x,y,z}, Scale3D={x,y,z}}
+        - same + 4th arg "StructProperty"
+        - lowercase keys
+        - array-style tables
+        - plain FVector {x,y,z} and {x,y,z} array
+      => Lua cannot write FTransform directly.
+
+  mcp.read_ptr(addr)        -> u64   (raw read at address)
+  mcp.read_float(addr)      -> float (raw read at address)
+  mcp.read_double(addr)     -> double
+  mcp.read_int(addr)        -> int
+  mcp.read_bool(addr)       -> bool
+  mcp.write_float(addr, v)
+  mcp.write_double(addr, v)
+  mcp.write_int(addr, v)
+  mcp.write_bool(addr, v)
+      -> these take RAW ADDRESSES; use them for per-frame struct writes
+         once property offsets are known.
+
+  mcp.on_frame(function(dt) ... end) -> callback id
+  mcp.clear_callbacks(), mcp.remove_callback(id)
+  mcp.log(msg), mcp.set_timer, mcp.wait, mcp.async
+
+UObject methods available in Lua:
+  :get_address() :get_fname() :get_full_name() :get_class() :get_outer()
+  :is_a() :get_bool_property() :set_bool_property() :get_property_data(name)
+  :process_event()
+
+
+7. NATIVE MCP TOOLS THAT HANDLE STRUCTS  (HTTP, not per-frame)
+---------------------------------------------------------------------
+  uevr_read_field({address:"0x..", fieldName:".."})   -> full struct JSON
+  uevr_write_field({address:"0x..", fieldName:"..", value:"<JSON>"})
+      -> supports bool/int/float/double/FName/enum/struct/object
+      -> VERIFIED: struct write works and reads back correctly.
+      -> Too slow for 90 Hz per-frame use (HTTP round trip).
+
+  Struct JSON shape used by the native tools:
+    {
+      "Rotation":  { "X":0, "Y":0, "Z":0, "W":1 },
+      "Translation": { "x":0, "y":0, "z":0 },
+      "Scale3D":     { "x":1, "y":1, "z":1 }
+    }
+    (note: Rotation keys are UPPERCASE, Translation/Scale3D lowercase)
+
+  uevr_get_type({typeName:"..."}) -> fields WITH OFFSETS + methods
+      Needs the full type path; short BP name returns 404.
+      Try "/Game/.../BP_AssaultRifle_Modern_Weapon_C" or the native base
+      class path from the dump. Offsets can also be recovered with
+      uevr_read_memory / uevr_read_typed, or from the MirrorProject headers.
+
+
+8. LIVE WEAPON
+---------------------------------------------------------------------
+Pawn slots:
+  CurrentWeapon   = whatever is held now (was BP_FlashGrenade_C at handoff)
+  PrimaryWeapon   = BP_AssaultRifle_Modern_Weapon_C @ 0x1FC59B250B0 (volatile)
+  SecondaryWeapon = BP_Pistol320_Weapon_C
+  SpecialWeapon   = BP_Breaching_Shotgun_C
+  InHandSocketName = "RH_WeaponSocket"
+
+Rifle fields (read via uevr_read_field):
+  GripType = EnumProperty GripEnum = 2
+      EGripEnum: None=0, Vertical=1, Angular=2, Horizontal=3
+      => currently ANGULAR
+
+  LeftHandAFrontGripTransform:
+      Rotation    = {X:-0.19980, Y:-0.92160, Z:0.32072, W:-0.08874}
+      Translation = {x:-25.4254, y:16.0314, z:2.3684}
+      Scale3D     = {1,1,1}
+
+  LeftHandTransform  (currently identical to A-front):
+      Rotation    = {X:-0.19981, Y:-0.92160, Z:0.32072, W:-0.08874}
+      Translation = {x:-25.4254, y:16.0314, z:2.3684}
+
+  LeftHandVFrontGripTransform:
+      Rotation    = {X:0.26542, Y:0.96121, Z:0.05182, W:-0.05423}
+      Translation = {x:-27.7271, y:13.7800, z:-5.8044}
+
+  LeftHandHFrontGripTransform: identity (unused while Angular is active)
+
+  LHandJointTargetLocation (FVector):
+      {x:50.13649, y:-0.000153, z:39.99013}
+
+  FreeLeftHand = false
+
+Units are UE centimetres, in weapon-local space
+(X = along barrel / forward, Y = right, Z = up).
+
+NOTE: a test value was written into LeftHandHFrontGripTransform and then
+restored to identity. It is clean now.
+
+
+9. THE SOLVED PROBLEM: LEFT-HAND IK TARGET
+---------------------------------------------------------------------
+The left hand is driven by Operator_AnimBP_C (the character AnimBP).
+
+IK chain:
+  AnimGraphNode_TwoBoneIK_2
+    IKBone            = Hand_L
+    EffectorTarget    = virtual bone "VB hand_L1"
+    JointTargetLoc    = LHandJointTargetLocation
+
+  "VB hand_L1" is built by:
+    AnimGraphNode_CopyBone_4/7 : VB hand_L1 <- Hand_L
+    AnimGraphNode_ModifyBone_50/51 : VB hand_L1, TranslationMode=Additive,
+                                     TranslationSpace=ParentBoneSpace
+
+  The ModifyBone additive translation is the weapon grip vector, taken from
+  the AnimBP variable:
+
+      PrimaryIKHands.LHandPosition_20_BEC420414C18F42062B4D19D9C3B5B64
+
+  This variable is written by the game only on weapon equip, so it is a
+  genuine INPUT (not a per-frame readback). Writing it moves the left hand.
+  This was proven: writing x=-60 moved the hand from -25.43 to -34.15
+  (partial move, clamped by arm reach); writing the live controller position
+  moved the hand to within 0.15 cm of the requested point.
+
+IMPORTANT: these fields are RECOMPUTED every frame and are NOT usable inputs:
+  LeftHandTransform, LeftHandAFrontGripTransform,
+  LeftHandVFrontGripTransform (on the weapon)
+  LHandTransformBS, LHandPositionLocation, HandLJoinAlpha,
+  AnimGraphNode_ModifyBone_50/51 (in the AnimBP)
+  Writing them has no effect (the graph overwrites them before it reads).
+
+The working input is PrimaryIKHands. A single write persists until the game
+rewrites it (weapon equip / level change). For continuous tracking, write it
+every frame from mcp.on_frame.
+
+Offsets (this build):
+  AnimBP PrimaryIKHands            = animBase + 0x308D0
+  LHandPosition FTransform         = PrimaryIKHands + 0x00
+      quat at +0x00, translation at +0x70, scale at +0x80
+      (write the translation at PrimaryIKHands + 0x70)
+  pawn -> Mesh                     = pawn + 0x280
+  Mesh -> AnimScriptInstance       = mesh + 0x6B0
+  pawn -> CurrentWeapon            = pawn + 0x5A0
+  weapon -> RootComponent          = weapon + 0x130
+  SceneComponent::ComponentToWorld = +0x1C0 (quat) / +0x1D0 (translation)
+  weapon LeftHandTransform         = +0x3B0 (translation +0x3C0) = default grip
+
+Left-controller transform in UE space:
+  Create a dummy SceneComponent on the pawn, then:
+    uevr.uobject_hook.get_or_add_motion_controller_state(comp)
+    st:set_hand(0)          -- 0 = LEFT
+    st:set_permanent(true)
+  The dummy's ComponentToWorld (+0x1C0/+0x1D0) is the left controller in
+  UE world space. (get_or_add_motion_controller_state works on COMPONENTS,
+  not on actors; on an actor it returns nil.)
+
+Per-frame math (all in Lua, raw floats):
+  local = inverse(weaponQuat) * (controllerPos - weaponPos)
+  write local.x/y/z to PrimaryIKHands + 0x70
+
+See section 13 for the full working script.
+
+
+10. VERIFY / DEBUG COMMANDS
+---------------------------------------------------------------------
+  uevr_is_ready            -> process/backend/plugin/HTTP health
+  uevr_vr_status           -> HMD, runtime, usingControllers
+  uevr_vr_poses            -> HMD + left/right grip & aim poses
+  uevr_get_player          -> pawn + controller addresses
+  uevr_summary {address}   -> lightweight object overview
+  uevr_read_field {address, fieldName}
+  uevr_write_field {address, fieldName, value}
+  uevr_lua_exec {code}
+  uevr_lua_write_script {filename, content, autorun}
+  uevr_save_config / uevr_reload_config
+  uevr_get_log / uevr_get_diagnostics
+
+
+11. CAVEATS
+---------------------------------------------------------------------
+  - All object addresses are volatile (level changes / GC). Re-resolve
+    every session via uevr_get_player and the pawn's weapon slots.
+  - The game is UE 4.27. Do NOT import UE5-era UEVR Hub profiles.
+  - The Prologue exe name differs from SWATCommander-Win64-Shipping.exe;
+    profile folder is SWATCommanderPrologue-Win64-Shipping.
+  - Keep changes reversible; write only what is needed, and restore
+    anything you test on unused fields.
+  - The per-frame write race is beaten by writing the AnimBP input
+    PrimaryIKHands (not the weapon grip fields) from mcp.on_frame.
+  - The dummy controller proxy is a component on the pawn; it must be
+    recreated after a level change (the script does this automatically
+    when the pawn/mesh changes, using _G.__twohand_ctrl).
+  - The UEVR log is flooded with xrWaitFrame 100ms warnings; filter
+    them out when grepping log.txt.
+
+
+12. OTHER (UNRELATED) THREAD: STRONGHOLD 3 GOLD LAN
+---------------------------------------------------------------------
+Status: host verified working (192.168.1.26:31313, SteamID
+76561197960287930 / Ghost). Friend PC (192.168.1.10) configured with
+SteamID 76561197960287931 / FriendPC, same core.v, firewall rules,
+RUNASADMIN. Two-sided discovery test still not completed: friend's log
+had zero 192.168.1.26 hits because the host was not running during that
+test. Next: simultaneous two-machine launch, compare both
+SmartSteamEmu.log files.
+  SSE config: C:\games\SmartSteamEmu143\SmartSteamEmu\SmartSteamEmu.ini
+  SSE log   : C:\games\SmartSteamEmu143\SmartSteamEmu\SmartSteamEmu.log
+  Original steam_api.dll untouched (145,600 bytes, SHA-256
+  025A1FD2B3E81A1A3D474B1707E3696CBC1A0FF2DEE65C4F74B186E688F01EC9)
+
+
+13. TWO-HANDED GRIP SCRIPT (WORKING)
+---------------------------------------------------------------------
+Files:
+  <profile>\scripts\twohand_grip.lua
+  <profile>\scripts\autorun\twohand_grip.lua   (auto-loads on game start)
+  <profile> = C:\Users\Ghost\AppData\Roaming\UnrealVRMod\
+              SWATCommanderPrologue-Win64-Shipping
+
+What it does, every frame:
+  1. Resolve pawn -> Mesh -> AnimScriptInstance -> PrimaryIKHands.
+  2. Resolve pawn -> CurrentWeapon -> RootComponent -> ComponentToWorld.
+  3. Read the dummy left-controller component's ComponentToWorld.
+  4. local = inverse(weaponQuat) * (controllerPos - weaponPos).
+  5. GRAB ZONE: measure the distance from the controller to the weapon's
+     default LEFT-HAND GRIP POINT, i.e. weaponPos +
+     rotate(weaponQuat, LeftHandTransform.Translation). This is the foregrip,
+     not the weapon actor origin (the origin is ~30 cm away, which made the
+     zone feel unreachable). Verified: the computed point lands within
+     ~2.4 cm of the real default Hand_L socket position.
+     If within ENGAGE_DIST (45 cm), engage.
+     If it moves beyond RELEASE_DIST (65 cm), release.
+  6. While engaged, by default the hand is LOCKED TO THE GUN: the IK
+     translation is written as the weapon's default grip (defGrip), so the
+     hand stays on the foregrip and moves with the weapon. The controller
+     only drives the hand rotation and the grab/release state.
+     Set _G.__twohand_lock_pos = false to go back to "hand follows the
+     controller position" mode.
+     On release, restore the weapon's default grip: rotation from
+     weapon + 0x3B0, translation from weapon + 0x3C0.
+
+Runtime toggle (Lua):
+  _G.__twohand_enabled = false   -- disable (hand returns to default grip)
+  _G.__twohand_enabled = true    -- enable
+
+Verified live:
+  POSITION: hand bone in weapon-local space matched the left controller
+  to within 0.05-0.33 cm across multiple reads.
+  ROTATION: writing PrimaryIKHands rotation (ikTrans - 0x10) persists and
+  changes the Hand_L socket transform (verified A/B with
+  GetSocketTransform("Hand_L", 0)). Default IK rotation is identical to
+  the weapon's LeftHandTransform.Rotation, so restoring the weapon field
+  restores the animated pose exactly.
+
+Tuning knobs at the top of the script:
+  ENGAGE_DIST / RELEASE_DIST  (cm)
+  ROT_SMOOTH                  (0..1 slerp per frame; 0.5 default)
+  Offsets (MESH_FROM_PAWN, ANIM_FROM_MESH, PIK_OFFSET, IK_NESTED,
+  WEAPON_GRIP_ROT, WEAPON_GRIP_TRANS, WEAPON_FROM_PAWN,
+  ROOT_COMPONENT_OFF, CTW_QUAT, CTW_TRANS).
+
+Reload after editing:
+  uevr_lua_reload({ filename = "twohand_grip.lua" })
+  Hot-reload safe: the script removes its previous frame callback via
+  _G.__twohand_cb before registering a new one, so ticks do not stack.
+
+Known limitations / next ideas:
+  - Arm reach clamps large offsets (IK is a TwoBoneIK). Very far targets
+    will stretch/limit the arm; the release threshold avoids most of it.
+  - The dummy proxy is created on first load. If the level changes and the
+    proxy is destroyed, clear _G.__twohand_ctrl and reload the script.
+  - Rotation follows the controller 1:1 with slerp smoothing; no wrist
+    limits are enforced yet (Phase 2 may add a Halo-style clamp).
+
+=====================================================================
+14. INCIDENT: "THE WHOLE BODY IS IN THE RIGHT CONTROLLER"
+=====================================================================
+Symptom (reported mid-session):
+  The two-handed grip had been working, then the entire character body
+  appeared stuck to / moving with a motion controller and nothing else
+  responded.
+
+Root cause:
+  During experimentation, uevr.uobject_hook.get_or_add_motion_controller_state()
+  was called on the character's REAL body mesh
+  (CH_Operator_C_...:CharacterMesh0). That attaches the mesh itself to a
+  controller, so the whole body follows the hand. It is NOT how the grip
+  script works -- the script only ever attaches an empty dummy component.
+
+  Note: uevr_list_motion_controllers() did NOT show this attachment even
+  though get_motion_controller_state(mesh) returned a valid state. Always
+  check components directly, not just the attachment list.
+
+Fix (already applied):
+  local pawn = uevr.api.get_local_pawn()
+  local path = pawn:get_full_name():match("^%S+ (.*)$")
+  local mesh = uevr.api.find_uobject("SkeletalMeshComponent " .. path .. ".CharacterMesh0")
+  uevr.uobject_hook.remove_motion_controller_state(mesh)
+  -- verify: get_motion_controller_state(mesh) == nil
+
+  Also removed a second stray state from a leftover dummy
+  SkeletalMeshComponent_2147455337 created by an earlier script version.
+
+  Verify the body is healthy by comparing transforms:
+    body mesh ComponentToWorld translation  ~= pawn root - (0,0,90)
+    body mesh AttachParent == CollisionCylinder (CapsuleComponent)
+    body mesh RelativeLocation.z ~= -90.0
+
+Second, independent cause of "controllers do nothing":
+  UEVR reported controller poses as exactly (0,0,0) identity, trigger/grip
+  false, usingControllers=false. That means the controllers were asleep /
+  not tracked by the runtime -- nothing to do with the game or the profile.
+  Wake the controllers (press a button, check batteries, keep them in view).
+  Live check:
+    uevr.vr.get_pose(0) = HMD, get_pose(1) = LEFT, get_pose(2) = RIGHT
+    (7 numbers: x,y,z,qx,qy,qz,qw). An untracked controller is exactly
+    0,0,0 / 0,0,0,1.
+
+Safety guard added to twohand_grip.lua:
+  If get_pose(1) is the identity-at-origin pose, the script treats the left
+  controller as untracked, disengages, and restores the default grip. Without
+  this, an untracked controller makes the proxy collapse onto the HMD, which
+  is close enough to the weapon to trigger a false "engage" and snap the left
+  hand up to your face.
+
+Cleanup procedure after any MC experiment:
+  1. uevr_list_motion_controllers() -- should show ONLY the dummy left proxy.
+  2. Check the real mesh:
+       get_motion_controller_state(CharacterMesh0) must be nil.
+  3. If not, remove_motion_controller_state(mesh).
+  4. Confirm body mesh AttachParent is the CapsuleComponent.
+  5. Reload twohand_grip.lua so the proxy is re-acquired.
+
+Third cause of "weird / doubled" behaviour: STACKED FRAME CALLBACKS
+  Every uevr_lua_reload of a script that calls mcp.on_frame(fn) adds a new
+  per-frame callback; the old one keeps running. Two ticks writing the same
+  IK fields fight each other. The script now stores its callback id in
+  _G.__twohand_cb and removes it before re-registering. To clean up an
+  already-poisoned session:
+    mcp.clear_callbacks()
+    uevr_lua_reload({ filename = "twohand_grip.lua" })
+  Then uevr_lua_state().frameCallbackCount must be 1.
+
+Fourth cause: "LEFT HAND STUCK ON THE GUN AND WON'T MOVE"
+  Symptom: the grip is not engaged, the character's left hand just sits in
+  the animated default grip on the weapon, and nothing the controller does
+  moves it.
+  Cause: the dummy controller proxy component gets DESTROYED on a level
+  change / pawn respawn. The script cached its address in
+  _G.__twohand_ctrl forever, so every frame it read a dead object:
+    proxy ComponentToWorld = quat(0,0,0,0) trans(0,0,0)
+  The computed controller position is then (0,0,0) in world space, which is
+  thousands of cm from the weapon -> dist > RELEASE_DIST -> never engages.
+  Diagnosis:
+    uevr_is_valid({address="0x..."})  -> valid:false
+    uevr_list_motion_controllers({})  -> count:0
+    read proxy+0x1C0 / +0x1D0         -> all zeros
+  Fix (already in the script):
+    - ensureController() is now per-pawn: it records _G.__twohand_pawn and
+      rebuilds the proxy when the pawn address changes.
+    - It reuses the cached proxy only if _G.__twohand_pawn matches the
+      current pawn.
+    - While the left controller is tracked, ~30 consecutive frames of an
+      all-zero proxy transform force a rebuild (ensureController(true)).
+    - resolveIk() now runs every frame, so pawn/mesh/anim pointers also
+      self-heal after a level change.
+  After the fix, a rebuild prints:
+    twohand: created left-controller proxy 0x... on pawn 0x...
+  Verify it is driven: proxy+0x1D0 must be a real world position near the
+  weapon, not (0,0,0).
+
+=====================================================================
+15. LEFT-HAND ROTATION (PHASE 1 IMPLEMENTATION)
+=====================================================================
+Goal: the left hand should rotate with the left controller while the
+two-handed grip is engaged, without breaking head tracking, right-hand
+aiming, or the existing left-hand IK.
+
+The input:
+  PrimaryIKHands.LHandPosition_20_... is a full FTransform:
+    Rotation    at ikTrans - 0x10   (FQuat, 4 floats)
+    Translation at ikTrans          (FVector, 3 floats)  <- position path
+    Scale3D     at ikTrans + 0x10
+  ikTrans = AnimScriptInstance + 0x308D0 + 0x70
+          = AnimScriptInstance + 0x30940
+
+Why this field:
+  - AnimGraphNode_ModifyBone_50/51 .Rotation, LeftHandTransform,
+    LHandTransformBS, LHandPositionLocation and HandLJoinAlpha are all
+    recomputed every frame; writing them is overwritten.
+  - PrimaryIKHands is the genuine AnimBP input. Its rotation write
+    PERSISTS and visibly rotates Hand_L.
+  - Default value equals weapon.LeftHandTransform.Rotation at weapon+0x3B0,
+    so restoring that field restores the animated pose exactly.
+
+Math (all quats normalized; weapon-local space):
+  wq        = weapon RootComponent ComponentToWorld quat (root+0x1C0)
+  cq        = controller ComponentToWorld quat (ctrl+0x1C0)
+  localCtrl = qconj(wq) * cq
+  On ENGAGE (grab moment):
+    rotCalib = qconj(localCtrl) * readQuat(ikRot)
+    -- captures the controller-to-hand offset, so no hardcoded constant
+    -- and the hand does not snap when the grip engages.
+  While engaged:
+    target = localCtrl * rotCalib
+    writeRot( qslerp(readQuat(ikRot), target, ROT_SMOOTH) )
+  On release / weapon change / untracked:
+    writeRot(defRot)   -- defRot = readQuat(weapon + 0x3B0)
+
+Debug globals:
+  _G.__twohand_engaged   true/false (nil before first tick)
+  _G.__twohand_rotcalib  captured grab offset (nil until first engage)
+  _G.__twohand_ctrl      dummy controller proxy address
+  _G.__twohand_pawn      pawn address the proxy was created on
+  _G.__twohand_cb        current frame callback id
+  _G.__twohand_dist      current distance from the foregrip (cm)
+  _G.__twohand_stage     last tick stage: engaged / untracked / noweapon /
+                         nodef / idle dist=NN / ERROR
+  _G.__twohand_ticks     frames the tick has run since load
+  _G.__twohand_err       Lua error text if the tick raised
+  _G.__twohand_lock_pos  true (default) = hand locked to the gun while
+                         gripped; false = hand follows controller position
+
+Tracking hysteresis:
+  A single identity pose frame is ignored; the controller is only treated as
+  gone after 15 consecutive identity frames. This prevents the grip from
+  flickering when the runtime briefly drops the pose.
+
+Live verification procedure:
+  1. Wake both controllers; confirm get_pose(1) is NOT 0,0,0/0,0,0,1.
+  2. Grip the weapon; _G.__twohand_engaged must become true.
+  3. Check readQuat(ikRot) != defRot and that it tracks wrist rotation.
+  4. In headset: left hand should rotate with the controller; releasing
+     should snap back to the animated grip.
+  5. If rotation feels laggy, raise ROT_SMOOTH toward 1.0; if jittery,
+     lower it toward 0.25.
+
+Reference sources used (behaviour only, no offsets copied):
+  HaloCampaignEvolved_UEVR src/TwoHandAim.hpp, src/Arms.hpp
+    - two-hand hold as an aim feature: grab zone, latch, single published
+      rotation for the support hand
+  uevrlib libs/controllers.lua, docs/ik.md
+    - MotionControllerComponent + set_hand/set_permanent, PoseableMesh IK
+  docs.uevr.io/plugins/lua.html
+    - pose reads, motion controller state
+
+=====================================================================
+ END OF HANDOFF
+=====================================================================
