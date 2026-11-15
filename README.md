@@ -1,7 +1,7 @@
 # SWAT Commander: Prologue — UEVR 6DOF research
 
 Research date: 2026-11-05
-Machine: `C:\Users\Ghost` (Windows 11 22621)
+Machine: Windows 11 (machine-specific username and build details omitted)
 
 ---
 
@@ -9,12 +9,12 @@ Machine: `C:\Users\Ghost` (Windows 11 22621)
 
 | Component | Path | Notes |
 |---|---|---|
-| UEVR-MCP v1.0.0 | `C:\Tools\UevrMcp-v1.0.0` | Official GitHub release, SHA-256 `6DDA2BDB…FDEFB68` |
+| UEVR-MCP v1.0.0 | `<UEVR_MCP_DIR>` | Official GitHub release, SHA-256 `6DDA2BDB…FDEFB68` |
 | MCP server | `bin\UevrMcpServer.exe` | .NET 9, self-contained, stdio MCP + CLI verbs |
 | Game plugin | `bin\uevr_mcp.dll` → installed into the game's UEVR profile | 4,126,208 bytes |
-| UEVR backend | `bin\UEVRBackend.dll` | 15,645,184 bytes, branch `ue57performance` (copied from `Downloads\uevr58-test`) |
+| UEVR backend | `bin\UEVRBackend.dll` | 15,645,184 bytes, branch `ue57performance` (local backend source path omitted) |
 | Dumper-7 | `bin\dumper7.dll` | fallback dumper |
-| OpenCode registration | `C:\Users\Ghost\.config\opencode\opencode.json` | server name `uevr`, 182 tools |
+| OpenCode registration | `<USER_PROFILE>/.config/opencode/opencode.json` | server name `uevr`, 182 tools |
 | Game plugin (live) | `%APPDATA%\UnrealVRMod\SWATCommanderPrologue-Win64-Shipping\plugins\uevr_mcp.dll` | |
 | Dumper sentinel | `%APPDATA%\UnrealVRMod\SWATCommanderPrologue-Win64-Shipping\dumper_mode` | **currently active** |
 
@@ -52,7 +52,7 @@ explicit DLL paths, or the equivalent CLI.
 OpenCode (this agent)
    │  MCP over stdio
    ▼
-UevrMcpServer.exe  ────────── HTTP 127.0.0.1:8899 ──────────┐
+UevrMcpServer.exe  ────────── HTTP localhost (local port omitted) ──────────┐
    │  CreateRemoteThread + LoadLibraryA                      │
    ▼                                                         │
 UEVRBackend.dll  ──loads──▶  uevr_mcp.dll  ──────────────────┘
@@ -61,23 +61,23 @@ UEVRBackend.dll  ──loads──▶  uevr_mcp.dll  ─────────
 UE 4.27 render/engine hooks    GUObjectArray, reflection, Lua, input
 ```
 
-- The plugin answers on `127.0.0.1:8899`; nothing is exposed to the network.
+- The plugin endpoint is bound to loopback only; it is not intended to be exposed to the network.
 - Reflection is read by walking `GUObjectArray` (~380,000 objects) on the game thread.
 - `uevr_get_status` / `uevr_is_ready` work even when HTTP is down (named-pipe fallback).
 
 ### Confirmed live state (main menu)
 ```
-pid 4836, modules: UEVRBackend.dll + uevr_mcp.dll, httpAlive: true
-PlayerController : BP_PC_Briefing_C  @ 0x29A3BE50BA0
-Pawn             : Character         @ 0x29A3BC4FAB0   (menu placeholder)
+modules: UEVRBackend.dll + uevr_mcp.dll, local endpoint responsive
+PlayerController : BP_PC_Briefing_C
+Pawn             : Character (menu placeholder)
 World            : /Game/Maps/ServiceMaps/Briefing
 CameraManager    : PCM_MenuCameraManager_C
-hmdActive        : false   (dumper mode — VR is intentionally disabled)
+hmdActive        : false (dumper mode — VR is intentionally disabled)
 ```
 
 ---
 
-## 4. What was dumped (`C:\SWAT-VR-Research`)
+## 4. What was dumped (`<RESEARCH_OUTPUT_DIR>`)
 
 | Output | Size | Use |
 |---|---|---|
@@ -213,8 +213,8 @@ without restarting the game.
 ### To switch from inspection to VR
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File `
-  "C:\Tools\UevrMcp-v1.0.0\tools\disable-dumper-mode.ps1" `
-  -GameExe "C:\Program Files (x86)\Steam\steamapps\common\SWAT Commander - Prologue\SWATCommander\Binaries\Win64\SWATCommanderPrologue-Win64-Shipping.exe"
+  "<UEVR_MCP_DIR>\tools\disable-dumper-mode.ps1" `
+  -GameExe "<STEAM_LIBRARY>\steamapps\common\SWAT Commander - Prologue\SWATCommander\Binaries\Win64\SWATCommanderPrologue-Win64-Shipping.exe"
 ```
 Then relaunch via Steam, inject, and `uevr_vr_status` should report the headset.
 Dumper mode intentionally disables VR, so nothing will render in the headset until this is done.
