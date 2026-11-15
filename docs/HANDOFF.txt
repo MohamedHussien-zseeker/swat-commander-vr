@@ -26,17 +26,17 @@ Engine       : Unreal Engine 4.27
                (UEVR log: "Found version 4.27 from executable";
                 WindowsNoEditor paks; PhysX3)
 
-UEVR profile : C:\Users\Ghost\AppData\Roaming\UnrealVRMod\SWATCommanderPrologue-Win64-Shipping
+UEVR profile : <REDACTED_LOCAL_USER_PATH>\AppData\Roaming\UnrealVRMod\SWATCommanderPrologue-Win64-Shipping
 UEVR-MCP     : C:\Tools\UevrMcp-v1.0.0   (release v1.0.0)
   installer that actually runs : install.run.ps1  (UTF-8 BOM copy)
-  backend DLL                  : C:\Users\Ghost\Downloads\uevr58-test\UEVRBackend.dll
+  backend DLL                  : <REDACTED_LOCAL_USER_PATH>\Downloads\uevr58-test\UEVRBackend.dll
   plugin DLL                   : <profile>\plugins\uevr_mcp.dll
   MCP HTTP port                : 8899
 
 OpenCode MCP registration:
-  C:\Users\Ghost\.config\opencode\opencode.json  -> mcp.servers.uevr
+  <REDACTED_LOCAL_USER_PATH>\.config\opencode\opencode.json  -> mcp.servers.uevr
   (type local, cwd C:\Tools\UevrMcp-v1.0.0\bin,
-   env UEVR_BACKEND_DLL=C:\Users\Ghost\Downloads\uevr58-test\UEVRBackend.dll)
+   env UEVR_BACKEND_DLL=<REDACTED_LOCAL_USER_PATH>\Downloads\uevr58-test\UEVRBackend.dll)
 
 Research / dumps:
   C:\SWAT-VR-Research\README.md
@@ -324,11 +324,11 @@ See section 13 for the full working script.
 
 12. OTHER (UNRELATED) THREAD: STRONGHOLD 3 GOLD LAN
 ---------------------------------------------------------------------
-Status: host verified working (192.168.1.26:31313, SteamID
-76561197960287930 / Ghost). Friend PC (192.168.1.10) configured with
+Status: host verified working (<REDACTED_LAN_IP>:31313, SteamID
+76561197960287930 / Ghost). Friend PC (<REDACTED_LAN_IP>) configured with
 SteamID 76561197960287931 / FriendPC, same core.v, firewall rules,
 RUNASADMIN. Two-sided discovery test still not completed: friend's log
-had zero 192.168.1.26 hits because the host was not running during that
+had zero <REDACTED_LAN_IP> hits because the host was not running during that
 test. Next: simultaneous two-machine launch, compare both
 SmartSteamEmu.log files.
   SSE config: C:\games\SmartSteamEmu143\SmartSteamEmu\SmartSteamEmu.ini
@@ -342,7 +342,7 @@ SmartSteamEmu.log files.
 Files:
   <profile>\scripts\twohand_grip.lua
   <profile>\scripts\autorun\twohand_grip.lua   (auto-loads on game start)
-  <profile> = C:\Users\Ghost\AppData\Roaming\UnrealVRMod\
+  <profile> = <REDACTED_LOCAL_USER_PATH>\AppData\Roaming\UnrealVRMod\
               SWATCommanderPrologue-Win64-Shipping
 
 What it does, every frame:
